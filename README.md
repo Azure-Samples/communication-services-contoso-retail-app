@@ -1,3 +1,16 @@
+---
+page_type: sample
+languages:
+- javascript
+- csharp
+- aspx-csharp
+- aspx
+- 
+products:
+- azure
+- azure-communication-services
+---
+
 # Tailwind Traders
 
 Tailwind Traders is a fictitious retail company showcasing the future of intelligent application experiences. These reference apps are all are powered by the Azure cloud, built with best-in-class tools, and made smarter through data and AI.
