@@ -13,6 +13,7 @@ const { AzureBotService } = require('@azure/arm-botservice');
 const { ResourceManagementClient } = require('@azure/arm-resources');
 const readFile = promisify(fs.readFile);
 const ora = require('ora');
+const { InteractiveBrowserCredential } = require('@azure/identity');
 
 const logger = (msg) => {
   if (msg.status === BotProjectDeployLoggerType.PROVISION_ERROR) {
@@ -271,7 +272,7 @@ const validateQnADeployment = async (client, resourceGroupName, deployName, temp
       mode: 'Incremental',
     },
   };
-  return await client.deployments.validate(resourceGroupName, deployName, deployParam);
+  return await client.deployments.beginValidateAndWait(resourceGroupName, deployName, deployParam);
 };
 
 /**
@@ -291,7 +292,7 @@ const createQnADeployment = async (client, resourceGroupName, deployName, templa
     },
   };
 
-  return await client.deployments.createOrUpdate(resourceGroupName, deployName, deployParam);
+  return await client.deployments.beginCreateOrUpdateAndWait(resourceGroupName, deployName, deployParam);
 };
 
 /**
@@ -311,7 +312,7 @@ const validateDeployment = async (client, resourceGroupName, deployName, templat
       mode: 'Incremental',
     },
   };
-  return await client.deployments.validate(resourceGroupName, deployName, deployParam);
+  return await client.deployments.beginValidateAndWait(resourceGroupName, deployName, deployParam);
 };
 
 /**
@@ -327,7 +328,7 @@ const createDeployment = async (client, resourceGroupName, deployName, templateP
     },
   };
 
-  return await client.deployments.createOrUpdate(resourceGroupName, deployName, deployParam);
+  return await client.deployments.beginCreateOrUpdateAndWait(resourceGroupName, deployName, deployParam);
 };
 
 /**
@@ -439,6 +440,7 @@ const create = async (
     creds.environment,
     creds.tokenCache
   );
+  //create graphClient need to use credential in track1.
   const graphClient = new GraphRbacManagementClient(graphCreds, tenantId, {
     baseUri: 'https://graph.windows.net',
   });
@@ -469,7 +471,10 @@ const create = async (
 
   // timestamp will be used as deployment name
   const timeStamp = new Date().getTime().toString();
-  const client = new ResourceManagementClient(creds, subId);
+
+  // Regenerate credential using t2 package (@identity)
+  const newCreds = new InteractiveBrowserCredential();
+  const client = new ResourceManagementClient(newCreds, subId);
 
   // Create a resource group to contain the new resources
   try {
@@ -527,7 +532,8 @@ const create = async (
   try {
     const deployment = await createDeployment(client, resourceGroupName, timeStamp, deploymentTemplateParam);
     // Handle errors
-    if (deployment._response.status != 200) {
+    console.log("===",deployment._response)
+    if (deployment.properties.provisioningState != 'Succeeded') {
       spinner.fail();
       logger({
         status: BotProjectDeployLoggerType.PROVISION_ERROR,
@@ -596,7 +602,8 @@ const create = async (
         qnaDeploymentTemplateParam
       );
       // Handle errors
-      if (qnaDeployment._response.status != 200) {
+      console.log("===",qnaDeployment)
+      if (qnaDeployment.properties.provisioningState != 'Succeeded') {
         spinner.fail();
         logger({
           status: BotProjectDeployLoggerType.PROVISION_ERROR,
